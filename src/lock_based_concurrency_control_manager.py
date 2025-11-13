@@ -10,7 +10,7 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
         self.exclusive_locks = {}
 
     def transaction_begin(self) -> int:
-        transaction_id = super().begin_transaction()
+        transaction_id = super().transaction_begin()
         self.transactions[transaction_id] = {
             **self.transactions[transaction_id],
             'shared_row_ids': set(),
@@ -62,13 +62,13 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
         if row_action == RowAction.WRITE:
             if exclusive_holder == transaction_id:
                 return ConcurrencyResponse(transaction_id, True, 'Write lock already held (exclusive)')
-            if exclusive_holder != transaction_id:
+            if exclusive_holder is not None:
                 return ConcurrencyResponse(transaction_id, False, f'Write denied: exclusive lock held by transaction id {exclusive_holder}')
             # exclusive_holder is none
             if shared_holders is not None:
                 other_shared_holders = shared_holders - {transaction_id}
                 if len(other_shared_holders) > 0:
-                    return ConcurrencyResponse(transaction_id, False, f'Write denied: read locks held by other transactions {sorted(list(next(iter(other_shared_holders))))}')
+                    return ConcurrencyResponse(transaction_id, False, f'Write denied: read locks held by other transactions {next(iter(other_shared_holders))}')
                 # remove from shared_holders and we will put it in exclusive_holder. essentially upgrading the lock
                 shared_holders.discard(transaction_id)
                 transaction['shared_row_ids'].discard(row_id)
