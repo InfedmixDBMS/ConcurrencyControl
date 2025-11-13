@@ -11,7 +11,7 @@ class ConcurrencyControlManager:
         return transaction_id in self.transactions
 
     def transaction_assert_exists(self, transaction_id: int) -> None:
-        if self.transaction_exists(transaction_id)
+        if self.transaction_exists(transaction_id):
             return
         raise Exception(f'Transaction with id {transaction_id} not found')
 
@@ -23,7 +23,7 @@ class ConcurrencyControlManager:
         return self.transactions[transaction_id]['status'] == TransactionStatus.ACTIVE
 
     def transaction_assert_queryable(self, transaction_id: int) -> None:
-        if self.transaction_is_queryable(transaction_id)
+        if self.transaction_is_queryable(transaction_id):
             return
         raise Exception(f'Transaction with id {transaction_id} is not active')
 
