@@ -38,7 +38,7 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
         self.__transaction_release_locks(transaction_id)
 
     def transaction_abort(self, transaction_id: int) -> None:
-        super().transaction_commit_flushed(transaction_id)
+        super().transaction_abort(transaction_id)
         self.__transaction_release_locks(transaction_id)
 
     def transaction_query(self, transaction_id: int, row_action: RowAction, row_id: int) -> ConcurrencyResponse:
