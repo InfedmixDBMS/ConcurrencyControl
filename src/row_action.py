@@ -1,6 +1,5 @@
 from enum import Enum
 
-class Action(Enum):
+class RowAction(Enum):
     READ = 'read'
     WRITE = 'write'
-    COMMIT = 'commit'

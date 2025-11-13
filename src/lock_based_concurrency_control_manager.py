@@ -1,9 +1,8 @@
-import math
 from .row_action import RowAction
 from .concurrency_response import ConcurrencyResponse
 from .concurrency_control_manager import ConcurrencyControlManager
 
-class TimestampBasedConcurrencyControlManager(ConcurrencyControlManager):
+class LockBasedConcurrencyControl(ConcurrencyControlManager):
 
     def __init__(self):
         super().__init__()
@@ -12,11 +11,8 @@ class TimestampBasedConcurrencyControlManager(ConcurrencyControlManager):
         transaction_id = super().begin_transaction()
         self.transactions[transaction_id] = {
             **self.transactions[transaction_id],
-            'start_timestamp': math.inf,
-            'validate_timestamp': math.inf,
-            'finish_timestamp': math.inf,
-            'read_timestamp': 0,
-            'write_timestamp': 0
+            'read_set': set(),
+            'write_set': set()
         }
         return transaction_id
 
