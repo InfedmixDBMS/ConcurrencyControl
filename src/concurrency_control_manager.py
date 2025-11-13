@@ -17,7 +17,15 @@ class ConcurrencyControlManager:
 
     def transaction_get_status(self, transaction_id: int) -> TransactionStatus:
         self.transaction_assert_exists(transaction_id)
-        return self.transaction_status[transaction_id]['status']
+        return self.transactions[transaction_id]['status']
+
+    def transaction_is_queryable(self, transaction_id: int):
+        return self.transactions[transaction_id]['status'] == TransactionStatus.ACTIVE
+
+    def transaction_assert_queryable(self, transaction_id: int) -> None:
+        if self.transaction_is_queryable(transaction_id)
+            return
+        raise Exception(f'Transaction with id {transaction_id} is not active')
 
     def transaction_begin(self) -> int:
         transaction_id = len(self.transactions) + 1
@@ -35,9 +43,8 @@ class ConcurrencyControlManager:
 
     def transaction_commit(self, transaction_id: int) -> ConcurrencyResponse:
         self.transaction_assert_exists(transaction_id)
+        self.transaction_assert_queryable(transaction_id)
         transaction = self.transactions[transaction_id]
-        if transaction['status'] != TransactionStatus.ACTIVE:
-            raise Exception(f'Transaction with id {transaction_id} is not active')
         transaction['status'] = TransactionStatus.PARTIALLY_COMMITTED
         pass
 
@@ -50,9 +57,8 @@ class ConcurrencyControlManager:
 
     def transaction_rollback(self, transaction_id: int) -> None:
         self.transaction_assert_exists(transaction_id)
+        self.transaction_assert_queryable(transaction_id)
         transaction = self.transactions[transaction_id]
-        if transaction['status'] != TransactionStatus.ACTIVE:
-            raise Exception(f'Transaction with id {transaction_id} is not active')
         transaction['status'] = TransactionStatus.FAILED
 
     def transaction_abort(self, transaction_id: int) -> None:
@@ -64,4 +70,7 @@ class ConcurrencyControlManager:
 
     def transaction_query(self, transaction_id: int, row_action: RowAction, row_id: int) -> ConcurrencyResponse:
         self.transaction_assert_exists(transaction_id)
+        self.transaction_assert_queryable(transaction_id)
         pass
+
+ConcurrencyControlManager.instance = None
