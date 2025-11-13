@@ -1,4 +1,4 @@
-from abc import ABC, classmethod
+from abc import ABC, abstractmethod
 from .action import Action
 from .response import Response
 
@@ -6,18 +6,18 @@ class ConcurrencyControlManager(ABC):
     def __init__(self, failure_recover_manager):
         self.failure_recover_manager = failure_recover_manager
 
-    @classmethod
+    @abstractmethod
     def begin_transaction(self) -> int:
         pass
 
-    @classmethod
+    @abstractmethod
     def end_transaction(self, transaction_id: int) -> None:
         pass
 
-    @classmethod
+    @abstractmethod
     def log_object(self, object, transaction_id: int) -> None:
         pass
 
-    @classmethod
+    @abstractmethod
     def validate_object(self, object, transaction_id: int, action: Action) -> Response:
         pass
