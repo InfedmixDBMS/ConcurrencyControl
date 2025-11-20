@@ -3,7 +3,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.timestamp_based_concurrency_control_manager import TimestampBasedConcurrencyControlManager
-from src.row_action import RowAction
+from src.row_action import TableAction
 
 def print_schedule(name, operations):
     """Print schedule in readable format"""
@@ -28,11 +28,11 @@ def test_timestamp_based():
     t2 = ccm.transaction_begin()
     
     print(f"T{t1}: Read(X) [TS={t1}]")
-    r1 = ccm.transaction_query(t1, RowAction.READ, 1)
+    r1 = ccm.transaction_query(t1, TableAction.READ, 1)
     print(f"   → {r1.reason}")
     
     print(f"T{t1}: Write(X) [TS={t1}]")
-    r2 = ccm.transaction_query(t1, RowAction.WRITE, 1)
+    r2 = ccm.transaction_query(t1, TableAction.WRITE, 1)
     print(f"   → {r2.reason}")
     
     print(f"T{t1}: Commit")
@@ -41,7 +41,7 @@ def test_timestamp_based():
     ccm.transaction_commit_flushed(t1)
     
     print(f"T{t2}: Read(X) [TS={t2}]")
-    r3 = ccm.transaction_query(t2, RowAction.READ, 1)
+    r3 = ccm.transaction_query(t2, TableAction.READ, 1)
     print(f"   → {r3.reason}")
     
     print(f"T{t2}: Commit")
@@ -64,15 +64,15 @@ def test_timestamp_based():
     t3 = ccm.transaction_begin()
     
     print(f"T{t1}: Read(X) [TS={t1}]")
-    r1 = ccm.transaction_query(t1, RowAction.READ, 1)
+    r1 = ccm.transaction_query(t1, TableAction.READ, 1)
     print(f"   → {r1.reason}")
     
     print(f"T{t2}: Read(X) [TS={t2}]")
-    r2 = ccm.transaction_query(t2, RowAction.READ, 1)
+    r2 = ccm.transaction_query(t2, TableAction.READ, 1)
     print(f"   → {r2.reason}")
     
     print(f"T{t3}: Read(X) [TS={t3}]")
-    r3 = ccm.transaction_query(t3, RowAction.READ, 1)
+    r3 = ccm.transaction_query(t3, TableAction.READ, 1)
     print(f"   → {r3.reason}")
     
     if r1.query_allowed and r2.query_allowed and r3.query_allowed:
@@ -89,11 +89,11 @@ def test_timestamp_based():
     t2 = ccm.transaction_begin()  # T2 has higher timestamp
     
     print(f"T{t2}: Write(X) [TS={t2}]")
-    r1 = ccm.transaction_query(t2, RowAction.WRITE, 1)
+    r1 = ccm.transaction_query(t2, TableAction.WRITE, 1)
     print(f"   → {r1.reason}")
     
     print(f"T{t1}: Read(X) [TS={t1}]")
-    r2 = ccm.transaction_query(t1, RowAction.READ, 1)
+    r2 = ccm.transaction_query(t1, TableAction.READ, 1)
     print(f"   → {r2.reason}")
     
     if r1.query_allowed and not r2.query_allowed:
@@ -110,11 +110,11 @@ def test_timestamp_based():
     t2 = ccm.transaction_begin()  # T2 has higher timestamp
     
     print(f"T{t2}: Read(X) [TS={t2}]")
-    r1 = ccm.transaction_query(t2, RowAction.READ, 1)
+    r1 = ccm.transaction_query(t2, TableAction.READ, 1)
     print(f"   → {r1.reason}")
     
     print(f"T{t1}: Write(X) [TS={t1}]")
-    r2 = ccm.transaction_query(t1, RowAction.WRITE, 1)
+    r2 = ccm.transaction_query(t1, TableAction.WRITE, 1)
     print(f"   → {r2.reason}")
     
     if r1.query_allowed and not r2.query_allowed:
@@ -131,11 +131,11 @@ def test_timestamp_based():
     t2 = ccm.transaction_begin()  # T2 has higher timestamp
     
     print(f"T{t2}: Write(X) [TS={t2}]")
-    r1 = ccm.transaction_query(t2, RowAction.WRITE, 1)
+    r1 = ccm.transaction_query(t2, TableAction.WRITE, 1)
     print(f"   → {r1.reason}")
     
     print(f"T{t1}: Write(X) [TS={t1}]")
-    r2 = ccm.transaction_query(t1, RowAction.WRITE, 1)
+    r2 = ccm.transaction_query(t1, TableAction.WRITE, 1)
     print(f"   → {r2.reason}")
     
     if r1.query_allowed and r2.query_allowed and "Thomas Write Rule" in r2.reason:
@@ -152,15 +152,15 @@ def test_timestamp_based():
     t2 = ccm.transaction_begin()  # T2 has higher timestamp
     
     print(f"T{t1}: Write(X) [TS={t1}]")
-    r1 = ccm.transaction_query(t1, RowAction.WRITE, 1)
+    r1 = ccm.transaction_query(t1, TableAction.WRITE, 1)
     print(f"   → {r1.reason}")
     
     print(f"T{t2}: Read(X) [TS={t2}]")
-    r2 = ccm.transaction_query(t2, RowAction.READ, 1)
+    r2 = ccm.transaction_query(t2, TableAction.READ, 1)
     print(f"   → {r2.reason}")
     
     print(f"T{t2}: Write(X) [TS={t2}]")
-    r3 = ccm.transaction_query(t2, RowAction.WRITE, 1)
+    r3 = ccm.transaction_query(t2, TableAction.WRITE, 1)
     print(f"   → {r3.reason}")
     
     if r1.query_allowed and r2.query_allowed and r3.query_allowed:
@@ -177,11 +177,11 @@ def test_timestamp_based():
     t2 = ccm.transaction_begin()
     
     print(f"T{t1}: Write(X) [TS={t1}]")
-    r1 = ccm.transaction_query(t1, RowAction.WRITE, 1)
+    r1 = ccm.transaction_query(t1, TableAction.WRITE, 1)
     print(f"   → {r1.reason}")
     
     print(f"T{t2}: Write(Y) [TS={t2}]")
-    r2 = ccm.transaction_query(t2, RowAction.WRITE, 2)
+    r2 = ccm.transaction_query(t2, TableAction.WRITE, 2)
     print(f"   → {r2.reason}")
     
     if r1.query_allowed and r2.query_allowed:
@@ -199,21 +199,21 @@ def test_timestamp_based():
     t3 = ccm.transaction_begin()
     
     print(f"T{t1}: Read(X) [TS={t1}]")
-    r1 = ccm.transaction_query(t1, RowAction.READ, 1)
+    r1 = ccm.transaction_query(t1, TableAction.READ, 1)
     print(f"   → {r1.reason}")
-    print(f"   RTS(X) = {ccm.row_read_timestamps.get(1, 0)}")
+    print(f"   RTS(X) = {ccm.table_read_timestamps.get(1, 0)}")
     
     print(f"T{t2}: Read(X) [TS={t2}]")
-    r2 = ccm.transaction_query(t2, RowAction.READ, 1)
+    r2 = ccm.transaction_query(t2, TableAction.READ, 1)
     print(f"   → {r2.reason}")
-    print(f"   RTS(X) = {ccm.row_read_timestamps.get(1, 0)}")
+    print(f"   RTS(X) = {ccm.table_read_timestamps.get(1, 0)}")
     
     print(f"T{t3}: Read(X) [TS={t3}]")
-    r3 = ccm.transaction_query(t3, RowAction.READ, 1)
+    r3 = ccm.transaction_query(t3, TableAction.READ, 1)
     print(f"   → {r3.reason}")
-    print(f"   RTS(X) = {ccm.row_read_timestamps.get(1, 0)}")
+    print(f"   RTS(X) = {ccm.table_read_timestamps.get(1, 0)}")
     
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed and ccm.row_read_timestamps.get(1, 0) == t3:
+    if r1.query_allowed and r2.query_allowed and r3.query_allowed and ccm.table_read_timestamps.get(1, 0) == t3:
         print("✓ Test 8 PASSED - RTS properly updated to maximum\n")
         passed_test += 1
     else:
@@ -226,11 +226,11 @@ def test_timestamp_based():
     t1 = ccm.transaction_begin()
     
     print(f"T{t1}: Read(X) [TS={t1}]")
-    r1 = ccm.transaction_query(t1, RowAction.READ, 1)
+    r1 = ccm.transaction_query(t1, TableAction.READ, 1)
     print(f"   → {r1.reason}")
     
     print(f"T{t1}: Write(Y) [TS={t1}]")
-    r2 = ccm.transaction_query(t1, RowAction.WRITE, 2)
+    r2 = ccm.transaction_query(t1, TableAction.WRITE, 2)
     print(f"   → {r2.reason}")
     
     print(f"T{t1}: Commit")
@@ -251,11 +251,11 @@ def test_timestamp_based():
     t2 = ccm.transaction_begin()
     
     print(f"T{t1}: Read(X) [TS={t1}]")
-    r1 = ccm.transaction_query(t1, RowAction.READ, 1)
+    r1 = ccm.transaction_query(t1, TableAction.READ, 1)
     print(f"   → {r1.reason}")
     
     print(f"T{t2}: Write(X) [TS={t2}]")
-    r2 = ccm.transaction_query(t2, RowAction.WRITE, 1)
+    r2 = ccm.transaction_query(t2, TableAction.WRITE, 1)
     print(f"   → {r2.reason}")
     
     print(f"T{t1}: Commit")
@@ -275,19 +275,19 @@ def test_timestamp_based():
     t1 = ccm.transaction_begin()
     
     print(f"T{t1}: Read(X) [TS={t1}]")
-    r1 = ccm.transaction_query(t1, RowAction.READ, 1)
+    r1 = ccm.transaction_query(t1, TableAction.READ, 1)
     print(f"   → {r1.reason}")
     
     print(f"T{t1}: Write(X) [TS={t1}]")
-    r2 = ccm.transaction_query(t1, RowAction.WRITE, 1)
+    r2 = ccm.transaction_query(t1, TableAction.WRITE, 1)
     print(f"   → {r2.reason}")
     
     print(f"T{t1}: Read(Y) [TS={t1}]")
-    r3 = ccm.transaction_query(t1, RowAction.READ, 2)
+    r3 = ccm.transaction_query(t1, TableAction.READ, 2)
     print(f"   → {r3.reason}")
     
     print(f"T{t1}: Write(Y) [TS={t1}]")
-    r4 = ccm.transaction_query(t1, RowAction.WRITE, 2)
+    r4 = ccm.transaction_query(t1, TableAction.WRITE, 2)
     print(f"   → {r4.reason}")
     
     if r1.query_allowed and r2.query_allowed and r3.query_allowed and r4.query_allowed:
@@ -304,19 +304,19 @@ def test_timestamp_based():
     t2 = ccm.transaction_begin()
     
     print(f"T{t1}: Write(X) [TS={t1}]")
-    r1 = ccm.transaction_query(t1, RowAction.WRITE, 1)
+    r1 = ccm.transaction_query(t1, TableAction.WRITE, 1)
     print(f"   → {r1.reason}")
     
     print(f"T{t1}: Read(Y) [TS={t1}]")
-    r2 = ccm.transaction_query(t1, RowAction.READ, 2)
+    r2 = ccm.transaction_query(t1, TableAction.READ, 2)
     print(f"   → {r2.reason}")
     
     print(f"T{t2}: Read(X) [TS={t2}]")
-    r3 = ccm.transaction_query(t2, RowAction.READ, 1)
+    r3 = ccm.transaction_query(t2, TableAction.READ, 1)
     print(f"   → {r3.reason}")
     
     print(f"T{t2}: Write(Y) [TS={t2}]")
-    r4 = ccm.transaction_query(t2, RowAction.WRITE, 2)
+    r4 = ccm.transaction_query(t2, TableAction.WRITE, 2)
     print(f"   → {r4.reason}")
     
     # T2 has higher timestamp, so it should succeed
@@ -334,11 +334,11 @@ def test_timestamp_based():
     t2 = ccm.transaction_begin()
     
     print(f"T{t1}: Write(X) [TS={t1}]")
-    r1 = ccm.transaction_query(t1, RowAction.WRITE, 1)
+    r1 = ccm.transaction_query(t1, TableAction.WRITE, 1)
     print(f"   → {r1.reason}")
     
     print(f"T{t2}: Read(X) [TS={t2}]")
-    r2 = ccm.transaction_query(t2, RowAction.READ, 1)
+    r2 = ccm.transaction_query(t2, TableAction.READ, 1)
     print(f"   → {r2.reason}")
     
     # In timestamp ordering, T2 can read because it has higher TS
@@ -357,21 +357,21 @@ def test_timestamp_based():
     t3 = ccm.transaction_begin()
     
     print(f"T{t1}: Write(X) [TS={t1}]")
-    r1 = ccm.transaction_query(t1, RowAction.WRITE, 1)
+    r1 = ccm.transaction_query(t1, TableAction.WRITE, 1)
     print(f"   → {r1.reason}")
-    print(f"   WTS(X) = {ccm.row_write_timestamps.get(1, 0)}")
+    print(f"   WTS(X) = {ccm.table_write_timestamps.get(1, 0)}")
     
     print(f"T{t2}: Write(X) [TS={t2}]")
-    r2 = ccm.transaction_query(t2, RowAction.WRITE, 1)
+    r2 = ccm.transaction_query(t2, TableAction.WRITE, 1)
     print(f"   → {r2.reason}")
-    print(f"   WTS(X) = {ccm.row_write_timestamps.get(1, 0)}")
+    print(f"   WTS(X) = {ccm.table_write_timestamps.get(1, 0)}")
     
     print(f"T{t3}: Write(X) [TS={t3}]")
-    r3 = ccm.transaction_query(t3, RowAction.WRITE, 1)
+    r3 = ccm.transaction_query(t3, TableAction.WRITE, 1)
     print(f"   → {r3.reason}")
-    print(f"   WTS(X) = {ccm.row_write_timestamps.get(1, 0)}")
+    print(f"   WTS(X) = {ccm.table_write_timestamps.get(1, 0)}")
     
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed and ccm.row_write_timestamps.get(1, 0) == t3:
+    if r1.query_allowed and r2.query_allowed and r3.query_allowed and ccm.table_write_timestamps.get(1, 0) == t3:
         print("✓ Test 14 PASSED - WTS properly updated\n")
         passed_test += 1
     else:
@@ -386,15 +386,15 @@ def test_timestamp_based():
     t3 = ccm.transaction_begin()
     
     print(f"T{t1}: Read(X) [TS={t1}]")
-    r1 = ccm.transaction_query(t1, RowAction.READ, 1)
+    r1 = ccm.transaction_query(t1, TableAction.READ, 1)
     print(f"   → {r1.reason}")
     
     print(f"T{t2}: Write(X) [TS={t2}]")
-    r2 = ccm.transaction_query(t2, RowAction.WRITE, 1)
+    r2 = ccm.transaction_query(t2, TableAction.WRITE, 1)
     print(f"   → {r2.reason}")
     
     print(f"T{t3}: Read(X) [TS={t3}]")
-    r3 = ccm.transaction_query(t3, RowAction.READ, 1)
+    r3 = ccm.transaction_query(t3, TableAction.READ, 1)
     print(f"   → {r3.reason}")
     
     if r1.query_allowed and r2.query_allowed and r3.query_allowed:
@@ -410,11 +410,11 @@ def test_timestamp_based():
     t1 = ccm.transaction_begin()
     
     print(f"T{t1}: Write(X) [TS={t1}]")
-    r1 = ccm.transaction_query(t1, RowAction.WRITE, 1)
+    r1 = ccm.transaction_query(t1, TableAction.WRITE, 1)
     print(f"   → {r1.reason}")
     
     print(f"T{t1}: Write(Y) [TS={t1}]")
-    r2 = ccm.transaction_query(t1, RowAction.WRITE, 2)
+    r2 = ccm.transaction_query(t1, TableAction.WRITE, 2)
     print(f"   → {r2.reason}")
     
     print(f"T{t1}: Commit")
@@ -437,27 +437,27 @@ def test_timestamp_based():
     t3 = ccm.transaction_begin()
     
     print(f"T{t1}: Write(X) [TS={t1}]")
-    r1 = ccm.transaction_query(t1, RowAction.WRITE, 1)
+    r1 = ccm.transaction_query(t1, TableAction.WRITE, 1)
     print(f"   → {r1.reason}")
     
     print(f"T{t2}: Write(Y) [TS={t2}]")
-    r2 = ccm.transaction_query(t2, RowAction.WRITE, 2)
+    r2 = ccm.transaction_query(t2, TableAction.WRITE, 2)
     print(f"   → {r2.reason}")
     
     print(f"T{t3}: Write(Z) [TS={t3}]")
-    r3 = ccm.transaction_query(t3, RowAction.WRITE, 3)
+    r3 = ccm.transaction_query(t3, TableAction.WRITE, 3)
     print(f"   → {r3.reason}")
     
     print(f"T{t1}: Read(Y) [TS={t1}]")
-    r4 = ccm.transaction_query(t1, RowAction.READ, 2)
+    r4 = ccm.transaction_query(t1, TableAction.READ, 2)
     print(f"   → {r4.reason}")
     
     print(f"T{t2}: Read(Z) [TS={t2}]")
-    r5 = ccm.transaction_query(t2, RowAction.READ, 3)
+    r5 = ccm.transaction_query(t2, TableAction.READ, 3)
     print(f"   → {r5.reason}")
     
     print(f"T{t3}: Read(X) [TS={t3}]")
-    r6 = ccm.transaction_query(t3, RowAction.READ, 1)
+    r6 = ccm.transaction_query(t3, TableAction.READ, 1)
     print(f"   → {r6.reason}")
     
     # T1 tries to read Y (written by T2 with higher TS) - should fail
