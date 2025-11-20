@@ -1,5 +1,5 @@
 from .transaction_status import TransactionStatus
-from .row_action import RowAction
+from .row_action import TableAction
 from .concurrency_response import ConcurrencyResponse
 from .concurrency_control_manager import ConcurrencyControlManager
 from .lock_based_concurrency_control_manager import LockBasedConcurrencyControlManager

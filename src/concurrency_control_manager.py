@@ -1,5 +1,5 @@
 from .transaction_status import TransactionStatus
-from .row_action import RowAction
+from .row_action import TableAction
 from .concurrency_response import ConcurrencyResponse
 
 class ConcurrencyControlManager:
@@ -68,7 +68,7 @@ class ConcurrencyControlManager:
             raise Exception(f'Transaction with id {transaction_id} is not in failed state')
         transaction['status'] = TransactionStatus.ABORTED
 
-    def transaction_query(self, transaction_id: int, row_action: RowAction, row_id: int) -> ConcurrencyResponse:
+    def transaction_query(self, transaction_id: int, table_action: TableAction, table_name: str) -> ConcurrencyResponse:
         self.transaction_assert_exists(transaction_id)
         self.transaction_assert_queryable(transaction_id)
         pass
