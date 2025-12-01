@@ -89,6 +89,11 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
         else:
             # kill if requester is younger
             return True, f'Transaction {requesting_txn_id} (TS={requesting_ts}) aborted by Wait-Die (younger than holder {holder_txn_id} TS={holder_ts})'
+    
+    def __get_active_transactions(self) -> list[int]:
+        """Get list of active transaction IDs"""
+        from .transaction_status import TransactionStatus
+        return [tid for tid, txn in self.transactions.items() if txn['status'] == TransactionStatus.ACTIVE]
 
     def transaction_query(self, transaction_id: int, table_action: TableAction, table_name: str) -> ConcurrencyResponse:
         """
@@ -100,7 +105,9 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                 transaction_id,
                 False,
                 f'transaction {transaction_id} does not exist',
-                LockStatus.FAILED
+                LockStatus.FAILED,
+                blocked_by=[],
+                active_transactions=self.__get_active_transactions()
             )
         
         transaction = self.transactions[transaction_id]
@@ -111,7 +118,9 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                 transaction_id,
                 False,
                 f'transaction {transaction_id} is in {transaction["status"].value} state',
-                LockStatus.FAILED
+                LockStatus.FAILED,
+                blocked_by=[],
+                active_transactions=self.__get_active_transactions()
             )
         
         #check 2pl violation
@@ -120,7 +129,9 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                 transaction_id, 
                 False, 
                 f'transaction {transaction_id} violated 2pl',
-                LockStatus.FAILED
+                LockStatus.FAILED,
+                blocked_by=[],
+                active_transactions=self.__get_active_transactions()
             )
         
         shared_holders = self.shared_locks.get(table_name)
@@ -138,7 +149,8 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                             False, 
                             f'Read denied (Wait-Die): {reason}',
                             LockStatus.FAILED,
-                            blocked_by=[exclusive_holder]
+                            blocked_by=[exclusive_holder],
+                            active_transactions=self.__get_active_transactions()
                         )
                     else:
                         transaction['waiting_for'] = exclusive_holder
@@ -147,7 +159,8 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                             False, 
                             f'Read waiting (Wait-Die): {reason}',
                             LockStatus.WAITING,
-                            blocked_by=[exclusive_holder]
+                            blocked_by=[exclusive_holder],
+                            active_transactions=self.__get_active_transactions()
                         )
             else:
                 if shared_holders is None:
@@ -159,7 +172,9 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                 transaction_id, 
                 True, 
                 f'Read lock granted on table {table_name}',
-                LockStatus.GRANTED
+                LockStatus.GRANTED,
+                blocked_by=[],
+                active_transactions=self.__get_active_transactions()
             )
         
         if table_action == TableAction.WRITE:
@@ -168,7 +183,9 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                     transaction_id, 
                     True, 
                     f'Write lock already held on table {table_name}',
-                    LockStatus.GRANTED
+                    LockStatus.GRANTED,
+                    blocked_by=[],
+                    active_transactions=self.__get_active_transactions()
                 )
             
             if exclusive_holder is not None:
@@ -181,7 +198,8 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                         False, 
                         f'Write denied (Wait-Die): {reason}',
                         LockStatus.FAILED,
-                        blocked_by=[exclusive_holder]
+                        blocked_by=[exclusive_holder],
+                        active_transactions=self.__get_active_transactions()
                     )
                 else:
                     transaction['waiting_for'] = exclusive_holder
@@ -190,7 +208,8 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                         False, 
                         f'Write waiting (Wait-Die): {reason}',
                         LockStatus.WAITING,
-                        blocked_by=[exclusive_holder]
+                        blocked_by=[exclusive_holder],
+                        active_transactions=self.__get_active_transactions()
                     )
             
             if shared_holders is not None:
@@ -206,7 +225,8 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                             False, 
                             f'Write denied (Wait-Die): {reason}',
                             LockStatus.FAILED,
-                            blocked_by=list(other_shared_holders)
+                            blocked_by=list(other_shared_holders),
+                            active_transactions=self.__get_active_transactions()
                         )
                     else:
                         transaction['waiting_for'] = first_holder
@@ -215,7 +235,8 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                             False, 
                             f'Write waiting (Wait-Die): shared locks held by {len(other_shared_holders)} transaction(s)',
                             LockStatus.WAITING,
-                            blocked_by=list(other_shared_holders)
+                            blocked_by=list(other_shared_holders),
+                            active_transactions=self.__get_active_transactions()
                         )
                 
                 #only this transaction holds shared lock so upgrade to exclusive
@@ -230,7 +251,9 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                 transaction_id, 
                 True, 
                 f'Write lock granted on table {table_name} (exclusive)',
-                LockStatus.GRANTED
+                LockStatus.GRANTED,
+                blocked_by=[],
+                active_transactions=self.__get_active_transactions()
             )
         
         raise Exception(f'Unknown table action {table_action}')
