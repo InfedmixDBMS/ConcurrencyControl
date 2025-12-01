@@ -137,7 +137,8 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                             transaction_id, 
                             False, 
                             f'Read denied (Wait-Die): {reason}',
-                            LockStatus.FAILED
+                            LockStatus.FAILED,
+                            blocked_by=[exclusive_holder]
                         )
                     else:
                         transaction['waiting_for'] = exclusive_holder
@@ -145,7 +146,8 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                             transaction_id, 
                             False, 
                             f'Read waiting (Wait-Die): {reason}',
-                            LockStatus.WAITING
+                            LockStatus.WAITING,
+                            blocked_by=[exclusive_holder]
                         )
             else:
                 if shared_holders is None:
@@ -178,7 +180,8 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                         transaction_id, 
                         False, 
                         f'Write denied (Wait-Die): {reason}',
-                        LockStatus.FAILED
+                        LockStatus.FAILED,
+                        blocked_by=[exclusive_holder]
                     )
                 else:
                     transaction['waiting_for'] = exclusive_holder
@@ -186,7 +189,8 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                         transaction_id, 
                         False, 
                         f'Write waiting (Wait-Die): {reason}',
-                        LockStatus.WAITING
+                        LockStatus.WAITING,
+                        blocked_by=[exclusive_holder]
                     )
             
             if shared_holders is not None:
@@ -201,7 +205,8 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                             transaction_id, 
                             False, 
                             f'Write denied (Wait-Die): {reason}',
-                            LockStatus.FAILED
+                            LockStatus.FAILED,
+                            blocked_by=list(other_shared_holders)
                         )
                     else:
                         transaction['waiting_for'] = first_holder
@@ -209,7 +214,8 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                             transaction_id, 
                             False, 
                             f'Write waiting (Wait-Die): shared locks held by {len(other_shared_holders)} transaction(s)',
-                            LockStatus.WAITING
+                            LockStatus.WAITING,
+                            blocked_by=list(other_shared_holders)
                         )
                 
                 #only this transaction holds shared lock so upgrade to exclusive
