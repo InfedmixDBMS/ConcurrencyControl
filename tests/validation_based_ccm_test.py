@@ -55,7 +55,7 @@ def test_validation_based():
     print(f"   → {c2.reason}")
     ccm.transaction_commit_flushed(t2)
     
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed and r4.query_allowed and c1.query_allowed and c2.query_allowed:
+    if r1.can_proceed and r2.can_proceed and r3.can_proceed and r4.can_proceed and c1.can_proceed and c2.can_proceed:
         print("✓ Test 1 PASSED\n")
         passed_test += 1
     else:
@@ -82,7 +82,7 @@ def test_validation_based():
     print(f"   → {r3.reason}")
     print(f"   Read set: {ccm.transactions[t1]['read_set']}")
     
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed and ccm.transactions[t1]['read_set'] == {1, 2, 3}:
+    if r1.can_proceed and r2.can_proceed and r3.can_proceed and ccm.transactions[t1]['read_set'] == {1, 2, 3}:
         print("✓ Test 2 PASSED - Read set tracked correctly\n")
         passed_test += 1
     else:
@@ -109,7 +109,7 @@ def test_validation_based():
     print(f"   → {r3.reason}")
     print(f"   Write set: {ccm.transactions[t1]['write_set']}")
     
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed and ccm.transactions[t1]['write_set'] == {1, 2, 3}:
+    if r1.can_proceed and r2.can_proceed and r3.can_proceed and ccm.transactions[t1]['write_set'] == {1, 2, 3}:
         print("✓ Test 3 PASSED - Write set tracked correctly\n")
         passed_test += 1
     else:
@@ -142,7 +142,7 @@ def test_validation_based():
     c1 = ccm.transaction_commit(t1)
     print(f"   → {c1.reason}")
     
-    if r1.query_allowed and r2.query_allowed and c2.query_allowed and not c1.query_allowed:
+    if r1.can_proceed and r2.can_proceed and c2.can_proceed and not c1.can_proceed:
         print("✓ Test 4 PASSED - Read-Write conflict detected\n")
         passed_test += 1
     else:
@@ -175,7 +175,7 @@ def test_validation_based():
     c1 = ccm.transaction_commit(t1)
     print(f"   → {c1.reason}")
     
-    if r1.query_allowed and r2.query_allowed and c2.query_allowed and not c1.query_allowed:
+    if r1.can_proceed and r2.can_proceed and c2.can_proceed and not c1.can_proceed:
         print("✓ Test 5 PASSED - Write-Write conflict detected\n")
         passed_test += 1
     else:
@@ -208,7 +208,7 @@ def test_validation_based():
     c1 = ccm.transaction_commit(t1)
     print(f"   → {c1.reason}")
     
-    if r1.query_allowed and r2.query_allowed and c2.query_allowed and c1.query_allowed:
+    if r1.can_proceed and r2.can_proceed and c2.can_proceed and c1.can_proceed:
         print("✓ Test 6 PASSED - No conflict on different objects\n")
         passed_test += 1
     else:
@@ -241,7 +241,7 @@ def test_validation_based():
     c1 = ccm.transaction_commit(t1)
     print(f"   → {c1.reason}")
     
-    if r1.query_allowed and r2.query_allowed and c2.query_allowed and c1.query_allowed:
+    if r1.can_proceed and r2.can_proceed and c2.can_proceed and c1.can_proceed:
         print("✓ Test 7 PASSED - No validation needed (T2 finished before T1 started)\n")
         passed_test += 1
     else:
@@ -274,7 +274,7 @@ def test_validation_based():
     c2 = ccm.transaction_commit(t2)
     print(f"   → {c2.reason}")
     
-    if r1.query_allowed and r2.query_allowed and c1.query_allowed and c2.query_allowed:
+    if r1.can_proceed and r2.can_proceed and c1.can_proceed and c2.can_proceed:
         print("✓ Test 8 PASSED - No validation needed (T2 started after T1 validated)\n")
         passed_test += 1
     else:
@@ -298,7 +298,7 @@ def test_validation_based():
     c1 = ccm.transaction_commit(t1)
     print(f"   → {c1.reason}")
     
-    if r1.query_allowed and r2.query_allowed and c1.query_allowed:
+    if r1.can_proceed and r2.can_proceed and c1.can_proceed:
         print("✓ Test 9 PASSED - Read-only transaction commits successfully\n")
         passed_test += 1
     else:
@@ -322,7 +322,7 @@ def test_validation_based():
     c1 = ccm.transaction_commit(t1)
     print(f"   → {c1.reason}")
     
-    if r1.query_allowed and r2.query_allowed and c1.query_allowed:
+    if r1.can_proceed and r2.can_proceed and c1.can_proceed:
         print("✓ Test 10 PASSED - Write-only transaction commits successfully\n")
         passed_test += 1
     else:
@@ -370,7 +370,7 @@ def test_validation_based():
     c2 = ccm.transaction_commit(t2)
     print(f"   → {c2.reason}")
     
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed and r4.query_allowed and r5.query_allowed and c1.query_allowed and not c2.query_allowed:
+    if r1.can_proceed and r2.can_proceed and r3.can_proceed and r4.can_proceed and r5.can_proceed and c1.can_proceed and not c2.can_proceed:
         print("✓ Test 11 PASSED - T2 fails due to write-write conflict with T1\n")
         passed_test += 1
     else:
@@ -417,7 +417,7 @@ def test_validation_based():
     print(f"   → {c1.reason}")
     
     # T1 should fail because T2 wrote X which T1 read
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed and r4.query_allowed and r5.query_allowed and c2.query_allowed and not c1.query_allowed:
+    if r1.can_proceed and r2.can_proceed and r3.can_proceed and r4.can_proceed and r5.can_proceed and c2.can_proceed and not c1.can_proceed:
         print("✓ Test 12 PASSED - Complex conflict detected\n")
         passed_test += 1
     else:
@@ -460,7 +460,7 @@ def test_validation_based():
     print(f"   → {c1.reason}")
     
     # T1 read Y, T2 wrote Y, so conflict
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed and r4.query_allowed and c2.query_allowed and not c1.query_allowed:
+    if r1.can_proceed and r2.can_proceed and r3.can_proceed and r4.can_proceed and c2.can_proceed and not c1.can_proceed:
         print("✓ Test 13 PASSED - Partial overlap conflict detected\n")
         passed_test += 1
     else:
@@ -507,7 +507,7 @@ def test_validation_based():
     c3 = ccm.transaction_commit(t3)
     print(f"   → {c3.reason}")
     
-    if all([r1.query_allowed, r2.query_allowed, r3.query_allowed, c1.query_allowed, c2.query_allowed, c3.query_allowed]):
+    if all([r1.can_proceed, r2.can_proceed, r3.can_proceed, c1.can_proceed, c2.can_proceed, c3.can_proceed]):
         print("✓ Test 14 PASSED - All sequential transactions succeed\n")
         passed_test += 1
     else:
@@ -550,7 +550,7 @@ def test_validation_based():
     print(f"   → {c2.reason}")
     
     # T2 should fail: T1 wrote Y (which T2 read) and T2 wrote X (which T1 read)
-    if all([r1.query_allowed, r2.query_allowed, r3.query_allowed, r4.query_allowed, c1.query_allowed]) and not c2.query_allowed:
+    if all([r1.can_proceed, r2.can_proceed, r3.can_proceed, r4.can_proceed, c1.can_proceed]) and not c2.can_proceed:
         print("✓ Test 15 PASSED - Bidirectional conflict detected\n")
         passed_test += 1
     else:

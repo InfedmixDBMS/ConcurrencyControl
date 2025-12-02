@@ -27,10 +27,10 @@ class ValidationBasedConcurrencyControlManager(ConcurrencyControlManager):
         self.transaction_assert_queryable(transaction_id)
         if table_action == TableAction.READ:
             self.transactions[transaction_id]['read_set'].add(table_name)
-            return ConcurrencyResponse(transaction_id, True, 'Read successful', LockStatus.GRANTED)
+            return ConcurrencyResponse(transaction_id, 'Read successful', LockStatus.GRANTED)
         if table_action == TableAction.WRITE:
             self.transactions[transaction_id]['write_set'].add(table_name,)
-            return ConcurrencyResponse(transaction_id, True, 'Write successful', LockStatus.GRANTED)
+            return ConcurrencyResponse(transaction_id, 'Write successful', LockStatus.GRANTED)
         raise Exception(f'Unknown table action {table_action}')
     
     def transaction_commit_flushed(self, transaction_id):
@@ -62,11 +62,11 @@ class ValidationBasedConcurrencyControlManager(ConcurrencyControlManager):
             if (Tj['write_set'] & Ti['read_set']) or (Tj['write_set'] & Ti['write_set']):
                 Ti['status'] = TransactionStatus.ABORTED
                 return ConcurrencyResponse(
-                    transaction_id, False,
+                    transaction_id,
                     f"Validation failed due to conflict with transaction {other_id}",
                     LockStatus.FAILED
                 )
         
         # Passed all validation checks
         Ti['status'] = TransactionStatus.PARTIALLY_COMMITTED
-        return ConcurrencyResponse(transaction_id, True, "Validation successful", LockStatus.GRANTED)
+        return ConcurrencyResponse(transaction_id, "Validation successful", LockStatus.GRANTED)

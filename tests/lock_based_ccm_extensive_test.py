@@ -39,7 +39,7 @@ def test_extensive_lock_based():
     print(f"T{t3}: Read(A)")
     r3 = ccm.transaction_query(t3, TableAction.READ, 'A')
     
-    if not r2.query_allowed and r3.query_allowed:
+    if not r2.can_proceed and r3.can_proceed:
         print("✓ PASSED - T2 blocked, T3 can read (no cascading abort)")
         passed += 1
     else:
@@ -61,8 +61,8 @@ def test_extensive_lock_based():
     r5 = ccm.transaction_query(t1, TableAction.WRITE, 'B')
     r6 = ccm.transaction_query(t1, TableAction.WRITE, 'C')
     
-    if all([r1.query_allowed, r2.query_allowed, r3.query_allowed, 
-            r4.query_allowed, r5.query_allowed, r6.query_allowed]):
+    if all([r1.can_proceed, r2.can_proceed, r3.can_proceed, 
+            r4.can_proceed, r5.can_proceed, r6.can_proceed]):
         print("✓ PASSED - All locks upgraded successfully")
         passed += 1
     else:
@@ -84,8 +84,8 @@ def test_extensive_lock_based():
     r5 = ccm.transaction_query(t2, TableAction.WRITE, 'E')
     r6 = ccm.transaction_query(t3, TableAction.WRITE, 'F')
     
-    if all([r1.query_allowed, r2.query_allowed, r3.query_allowed,
-            r4.query_allowed, r5.query_allowed, r6.query_allowed]):
+    if all([r1.can_proceed, r2.can_proceed, r3.can_proceed,
+            r4.can_proceed, r5.can_proceed, r6.can_proceed]):
         print("✓ PASSED - All non-conflicting operations succeeded")
         passed += 1
     else:
@@ -101,8 +101,8 @@ def test_extensive_lock_based():
     for i, tid in enumerate(transactions):
         print(f"T{tid}: Write(X)")
         r = ccm.transaction_query(tid, TableAction.WRITE, 'X')
-        results.append(r.query_allowed)
-        if not r.query_allowed:
+        results.append(r.can_proceed)
+        if not r.can_proceed:
             print(f"   → {r.reason}")
     
     granted = sum(results)
@@ -130,7 +130,7 @@ def test_extensive_lock_based():
     r2 = ccm.transaction_query(t2, TableAction.WRITE, 'C')
     r3 = ccm.transaction_query(t3, TableAction.WRITE, 'A')
     
-    blocked_or_aborted = sum([not r.query_allowed for r in [r1, r2, r3]])
+    blocked_or_aborted = sum([not r.can_proceed for r in [r1, r2, r3]])
     if blocked_or_aborted >= 2:
         print("✓ PASSED - At least 2 transactions blocked/aborted (deadlock prevented)")
         passed += 1
@@ -150,7 +150,7 @@ def test_extensive_lock_based():
     results = []
     for i in range(5):
         r = ccm.transaction_query(t1, TableAction.WRITE, 'X')
-        results.append(r.query_allowed)
+        results.append(r.can_proceed)
     
     if all(results):
         print("✓ PASSED - All upgrade attempts succeeded (lock already held)")
@@ -172,7 +172,7 @@ def test_extensive_lock_based():
     results = []
     for action, obj in pattern:
         r = ccm.transaction_query(t1, TableAction.READ if action == 'READ' else TableAction.WRITE, obj)
-        results.append(r.query_allowed)
+        results.append(r.can_proceed)
     
     if all(results):
         print("✓ PASSED - Complex pattern executed successfully")
@@ -203,7 +203,7 @@ def test_extensive_lock_based():
     r1 = ccm.transaction_query(t3, TableAction.WRITE, 'A')
     r2 = ccm.transaction_query(t3, TableAction.WRITE, 'B')
     
-    if r1.query_allowed and r2.query_allowed:
+    if r1.can_proceed and r2.can_proceed:
         print("✓ PASSED - T3 acquired locks after T1 commit")
         passed += 1
     else:
@@ -234,7 +234,7 @@ def test_extensive_lock_based():
     results = []
     for tid in readers:
         r = ccm.transaction_query(tid, TableAction.READ, 'X')
-        results.append(r.query_allowed)
+        results.append(r.can_proceed)
     
     if all(results):
         print("✓ PASSED - All 5 readers acquired shared lock")
@@ -258,7 +258,7 @@ def test_extensive_lock_based():
     print(f"T{t1}: Write(B) - should be rejected (already terminated)")
     response = ccm.transaction_query(t1, TableAction.WRITE, 'B')
     
-    if not response.query_allowed and response.status == LockStatus.FAILED:
+    if not response.can_proceed and response.status == LockStatus.FAILED:
         print(f"✓ PASSED - Transaction not active after commit: {response.reason}")
         passed += 1
     else:
@@ -287,7 +287,7 @@ def test_extensive_lock_based():
     print(f"T{t2_new}: Retry with new transaction")
     r2 = ccm.transaction_query(t2_new, TableAction.WRITE, 'X')
     
-    if not r1.query_allowed and t2_status == 'failed' and r2.query_allowed:
+    if not r1.can_proceed and t2_status == 'failed' and r2.can_proceed:
         print("✓ PASSED - Retry after abort succeeded")
         passed += 1
     else:
@@ -309,7 +309,7 @@ def test_extensive_lock_based():
     print(f"T{t1}: Write(X) - should wait for T2, T3")
     r = ccm.transaction_query(t1, TableAction.WRITE, 'X')
     
-    if not r.query_allowed and 'wait' in r.reason.lower():
+    if not r.can_proceed and 'wait' in r.reason.lower():
         print("✓ PASSED - Upgrade blocked by other readers")
         passed += 1
     else:
@@ -324,7 +324,7 @@ def test_extensive_lock_based():
         tid = ccm.transaction_begin()
         print(f"T{tid}: Write(X)")
         r = ccm.transaction_query(tid, TableAction.WRITE, 'X')
-        if not r.query_allowed:
+        if not r.can_proceed:
             print(f"✗ Iteration {i+1} failed")
             failed += 1
             break
@@ -349,7 +349,7 @@ def test_extensive_lock_based():
     r = ccm.transaction_query(t_new, TableAction.WRITE, 'X')
     status = ccm.transaction_get_status(t_new).value
     
-    if not r.query_allowed and status == 'failed':
+    if not r.can_proceed and status == 'failed':
         print("✓ PASSED - Younger transaction died")
         passed += 1
     else:
@@ -376,7 +376,7 @@ def test_extensive_lock_based():
     r2 = ccm.transaction_query(t2, TableAction.WRITE, 'B')
     r3 = ccm.transaction_query(t2, TableAction.WRITE, 'C')
     
-    if all([r1.query_allowed, r2.query_allowed, r3.query_allowed]):
+    if all([r1.can_proceed, r2.can_proceed, r3.can_proceed]):
         print("✓ PASSED - All locks released after abort")
         passed += 1
     else:
@@ -392,7 +392,7 @@ def test_extensive_lock_based():
     results = []
     for obj in objects:
         r = ccm.transaction_query(t1, TableAction.WRITE, obj)
-        results.append(r.query_allowed)
+        results.append(r.can_proceed)
     
     if all(results):
         print(f"✓ PASSED - All {len(objects)} different object types locked")
@@ -413,7 +413,7 @@ def test_extensive_lock_based():
     for i, tid in enumerate(transactions):
         obj = 'A' if i < 10 else 'B'
         r = ccm.transaction_query(tid, TableAction.WRITE, obj)
-        if r.query_allowed:
+        if r.can_proceed:
             if obj == 'A':
                 granted_a += 1
             else:
@@ -437,7 +437,7 @@ def test_extensive_lock_based():
     print(f"T{t1}: Read(X)")
     r2 = ccm.transaction_query(t1, TableAction.READ, 'X')
     
-    if r1.query_allowed and r2.query_allowed:
+    if r1.can_proceed and r2.can_proceed:
         print("✓ PASSED - Read after write in same transaction")
         passed += 1
     else:

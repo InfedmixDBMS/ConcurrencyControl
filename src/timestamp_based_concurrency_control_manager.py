@@ -32,14 +32,13 @@ class TimestampBasedConcurrencyControlManager(ConcurrencyControlManager):
                 super().transaction_rollback(transaction_id)
                 return ConcurrencyResponse(
                     transaction_id, 
-                    False, 
                     f'Commit denied: table {table_name} was modified by newer transaction',
                     LockStatus.FAILED
                 )
         
         # commit success
         super().transaction_commit(transaction_id)
-        return ConcurrencyResponse(transaction_id, True, 'Transaction committed successfully', LockStatus.GRANTED)
+        return ConcurrencyResponse(transaction_id, 'Transaction committed successfully', LockStatus.GRANTED)
 
     def transaction_query(self, transaction_id: int, table_action: TableAction, table_name: str) -> ConcurrencyResponse:
         self.transaction_assert_exists(transaction_id)
@@ -59,7 +58,6 @@ class TimestampBasedConcurrencyControlManager(ConcurrencyControlManager):
                 super().transaction_rollback(transaction_id)
                 return ConcurrencyResponse(
                     transaction_id, 
-                    False, 
                     f'Read denied: table {table_name} written by newer transaction (WTS={write_ts} > TS={ts})',
                     LockStatus.FAILED
                 )
@@ -67,7 +65,7 @@ class TimestampBasedConcurrencyControlManager(ConcurrencyControlManager):
             # update read timestamp ke max
             self.table_read_timestamps[table_name] = max(read_ts, ts)
             transaction['read_set'].add(table_name)
-            return ConcurrencyResponse(transaction_id, True, f'Read allowed on table {table_name}', LockStatus.GRANTED)
+            return ConcurrencyResponse(transaction_id, f'Read allowed on table {table_name}', LockStatus.GRANTED)
         
         if table_action == TableAction.WRITE:
             # Write rule: TS(Ti) >= RTS(X) and TS(Ti) >= WTS(X)
@@ -76,7 +74,6 @@ class TimestampBasedConcurrencyControlManager(ConcurrencyControlManager):
                 super().transaction_rollback(transaction_id)
                 return ConcurrencyResponse(
                     transaction_id, 
-                    False, 
                     f'Write denied: table {table_name} read by newer transaction (RTS={read_ts} > TS={ts})',
                     LockStatus.FAILED
                 )
@@ -86,7 +83,6 @@ class TimestampBasedConcurrencyControlManager(ConcurrencyControlManager):
                 transaction['write_set'].add(table_name)
                 return ConcurrencyResponse(
                     transaction_id, 
-                    True, 
                     f'Write ignored (Thomas Write Rule): table {table_name} already written by newer transaction',
                     LockStatus.GRANTED
                 )
@@ -94,6 +90,6 @@ class TimestampBasedConcurrencyControlManager(ConcurrencyControlManager):
             # update write timestamp
             self.table_write_timestamps[table_name] = ts
             transaction['write_set'].add(table_name)
-            return ConcurrencyResponse(transaction_id, True, f'Write allowed on table {table_name}', LockStatus.GRANTED)
+            return ConcurrencyResponse(transaction_id, f'Write allowed on table {table_name}', LockStatus.GRANTED)
         
         raise Exception(f'Unknown table action {table_action}')

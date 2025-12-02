@@ -64,7 +64,7 @@ def test_lock_based():
     r3 = ccm.transaction_query(t3, TableAction.READ, 1)
     print(f"   → {r3.reason}")
     
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed:
+    if r1.can_proceed and r2.can_proceed and r3.can_proceed:
         print("✓ Test 2 PASSED - All concurrent reads allowed\n")
     else:
         print("✗ Test 2 FAILED\n")
@@ -85,7 +85,7 @@ def test_lock_based():
     
     # In Wait-Die: T2 (younger) should DIE (abort)
     t2_status = ccm.transaction_get_status(t2).value
-    if r1.query_allowed and not r2.query_allowed and t2_status == 'failed':
+    if r1.can_proceed and not r2.can_proceed and t2_status == 'failed':
         print("✓ Test 3 PASSED - Younger transaction dies\n")
     else:
         print("✗ Test 3 FAILED\n")
@@ -106,7 +106,7 @@ def test_lock_based():
     
     # In Wait-Die: T2 (younger) should DIE (abort)
     t2_status = ccm.transaction_get_status(t2).value
-    if r1.query_allowed and not r2.query_allowed and t2_status == 'failed':
+    if r1.can_proceed and not r2.can_proceed and t2_status == 'failed':
         print("✓ Test 4 PASSED - Younger transaction dies\n")
     else:
         print("✗ Test 4 FAILED\n")
@@ -124,7 +124,7 @@ def test_lock_based():
     r2 = ccm.transaction_query(t1, TableAction.WRITE, 1)
     print(f"   → {r2.reason}")
     
-    if r1.query_allowed and r2.query_allowed:
+    if r1.can_proceed and r2.can_proceed:
         print("✓ Test 5 PASSED - Lock upgraded\n")
     else:
         print("✗ Test 5 FAILED\n")
@@ -143,7 +143,7 @@ def test_lock_based():
     r2 = ccm.transaction_query(t2, TableAction.WRITE, 2)
     print(f"   → {r2.reason}")
     
-    if r1.query_allowed and r2.query_allowed:
+    if r1.can_proceed and r2.can_proceed:
         print("✓ Test 6 PASSED - Different objects don't conflict\n")
     else:
         print("✗ Test 6 FAILED\n")
@@ -169,7 +169,7 @@ def test_lock_based():
     
     # In Wait-Die: T3 (youngest) should DIE (abort) when conflicting with older readers
     t3_status = ccm.transaction_get_status(t3).value
-    if r1.query_allowed and r2.query_allowed and not r3.query_allowed and t3_status == 'failed':
+    if r1.can_proceed and r2.can_proceed and not r3.can_proceed and t3_status == 'failed':
         print("✓ Test 7 PASSED - Younger writer aborted by older readers\n")
     else:
         print("✗ Test 7 FAILED\n")
@@ -192,7 +192,7 @@ def test_lock_based():
     r2 = ccm.transaction_query(t2, TableAction.WRITE, 1)
     print(f"   → {r2.reason}")
     
-    if r1.query_allowed and r2.query_allowed:
+    if r1.can_proceed and r2.can_proceed:
         print("✓ Test 8 PASSED - Lock released after commit\n")
     else:
         print("✗ Test 8 FAILED\n")
@@ -215,7 +215,7 @@ def test_lock_based():
     r2 = ccm.transaction_query(t2, TableAction.WRITE, 1)
     print(f"   → {r2.reason}")
     
-    if r1.query_allowed and r2.query_allowed:
+    if r1.can_proceed and r2.can_proceed:
         print("✓ Test 9 PASSED - Lock released after abort\n")
     else:
         print("✗ Test 9 FAILED\n")
@@ -237,7 +237,7 @@ def test_lock_based():
     r3 = ccm.transaction_query(t1, TableAction.READ, 1)
     print(f"   → {r3.reason}")
     
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed:
+    if r1.can_proceed and r2.can_proceed and r3.can_proceed:
         print("✓ Test 10 PASSED - Same transaction can read multiple times\n")
     else:
         print("✗ Test 10 FAILED\n")
@@ -259,7 +259,7 @@ def test_lock_based():
     r3 = ccm.transaction_query(t1, TableAction.WRITE, 1)
     print(f"   → {r3.reason}")
     
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed:
+    if r1.can_proceed and r2.can_proceed and r3.can_proceed:
         print("✓ Test 11 PASSED - Same transaction can write multiple times\n")
     else:
         print("✗ Test 11 FAILED\n")
@@ -288,12 +288,12 @@ def test_lock_based():
         print(f"T{t2}: Write(Y)")
         r4 = ccm.transaction_query(t2, TableAction.WRITE, 2)
         print(f"   → {r4.reason}")
-        conflicts_detected = not r3.query_allowed or not r4.query_allowed
+        conflicts_detected = not r3.can_proceed or not r4.can_proceed
     else:
         print(f"T{t2}: Already aborted, cannot continue")
-        conflicts_detected = not r3.query_allowed
+        conflicts_detected = not r3.can_proceed
     
-    if r1.query_allowed and r2.query_allowed and conflicts_detected:
+    if r1.can_proceed and r2.can_proceed and conflicts_detected:
         print("✓ Test 12 PASSED - Conflicts properly detected\n")
     else:
         print("✗ Test 12 FAILED\n")
@@ -318,7 +318,7 @@ def test_lock_based():
     
     # In Wait-Die: T1 (older, TS=1) trying to upgrade will WAIT for T2 (younger, TS=2)
     # T1 is older so it should wait, not abort
-    if r1.query_allowed and r2.query_allowed and not r3.query_allowed and 'waiting' in r3.reason.lower():
+    if r1.can_proceed and r2.can_proceed and not r3.can_proceed and 'waiting' in r3.reason.lower():
         print("✓ Test 13 PASSED - Older transaction waits to upgrade lock\n")
     else:
         print("✗ Test 13 FAILED\n")
@@ -347,12 +347,12 @@ def test_lock_based():
         print(f"T{t2}: Write(X)")
         r4 = ccm.transaction_query(t2, TableAction.WRITE, 1)
         print(f"   → {r4.reason}")
-        deadlock_prevented = not r3.query_allowed or not r4.query_allowed
+        deadlock_prevented = not r3.can_proceed or not r4.can_proceed
     else:
         print(f"T{t2}: Already wounded/aborted by T1")
         deadlock_prevented = True
     
-    if r1.query_allowed and r2.query_allowed and deadlock_prevented:
+    if r1.can_proceed and r2.can_proceed and deadlock_prevented:
         print("✓ Test 14 PASSED - Deadlock prevented by Wait-Die\n")
     else:
         print("✗ Test 14 FAILED\n")
@@ -379,7 +379,7 @@ def test_lock_based():
     # In Wait-Die: T2 and T3 (younger) should DIE (abort) when conflicting with T1 (older)
     t2_status = ccm.transaction_get_status(t2).value
     t3_status = ccm.transaction_get_status(t3).value
-    if r1.query_allowed and not r2.query_allowed and not r3.query_allowed and t2_status == 'failed' and t3_status == 'failed':
+    if r1.can_proceed and not r2.can_proceed and not r3.can_proceed and t2_status == 'failed' and t3_status == 'failed':
         print("✓ Test 15 PASSED - Both T2 and T3 aborted by older T1\n")
     else:
         print("✗ Test 15 FAILED\n")
@@ -420,7 +420,7 @@ def test_lock_based():
     print(f"   → {r2.reason}")
     
     # T2 (older, TS=1) should WAIT for T1 (younger, TS=2)
-    if r1.query_allowed and not r2.query_allowed and 'wait' in r2.reason.lower():
+    if r1.can_proceed and not r2.can_proceed and 'wait' in r2.reason.lower():
         print("✓ Test 17 PASSED - Older transaction waits\n")
     else:
         print("✗ Test 17 FAILED\n")
@@ -441,7 +441,7 @@ def test_lock_based():
     
     # T2 (younger, TS=2) should DIE (abort)
     txn2_status = ccm.transaction_get_status(t2)
-    if r1.query_allowed and not r2.query_allowed and txn2_status.value == 'failed':
+    if r1.can_proceed and not r2.can_proceed and txn2_status.value == 'failed':
         print("✓ Test 18 PASSED - Younger transaction dies (aborted)\n")
     else:
         print("✗ Test 18 FAILED\n")
@@ -462,7 +462,7 @@ def test_lock_based():
     
     # T2 (younger) should DIE (abort)
     txn2_status = ccm.transaction_get_status(t2)
-    if r1.query_allowed and not r2.query_allowed and txn2_status.value == 'failed':
+    if r1.can_proceed and not r2.can_proceed and txn2_status.value == 'failed':
         print("✓ Test 19 PASSED - Younger transaction dies on read-write conflict\n")
     else:
         print("✗ Test 19 FAILED\n")

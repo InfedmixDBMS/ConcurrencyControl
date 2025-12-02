@@ -103,7 +103,6 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
         if transaction_id not in self.transactions:
             return ConcurrencyResponse(
                 transaction_id,
-                False,
                 f'transaction {transaction_id} does not exist',
                 LockStatus.FAILED,
                 blocked_by=[],
@@ -116,7 +115,6 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
         if transaction['status'].value not in ['active']:
             return ConcurrencyResponse(
                 transaction_id,
-                False,
                 f'transaction {transaction_id} is in {transaction["status"].value} state',
                 LockStatus.FAILED,
                 blocked_by=[],
@@ -127,7 +125,6 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
         if transaction['has_released_lock']:
             return ConcurrencyResponse(
                 transaction_id, 
-                False, 
                 f'transaction {transaction_id} violated 2pl',
                 LockStatus.FAILED,
                 blocked_by=[],
@@ -146,7 +143,6 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                         super().transaction_rollback(transaction_id)
                         return ConcurrencyResponse(
                             transaction_id, 
-                            False, 
                             f'Read denied (Wait-Die): {reason}',
                             LockStatus.FAILED,
                             blocked_by=[exclusive_holder],
@@ -156,7 +152,6 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                         transaction['waiting_for'] = exclusive_holder
                         return ConcurrencyResponse(
                             transaction_id, 
-                            False, 
                             f'Read waiting (Wait-Die): {reason}',
                             LockStatus.WAITING,
                             blocked_by=[exclusive_holder],
@@ -170,7 +165,6 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                 shared_holders.add(transaction_id)
             return ConcurrencyResponse(
                 transaction_id, 
-                True, 
                 f'Read lock granted on table {table_name}',
                 LockStatus.GRANTED,
                 blocked_by=[],
@@ -181,7 +175,6 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
             if exclusive_holder == transaction_id:
                 return ConcurrencyResponse(
                     transaction_id, 
-                    True, 
                     f'Write lock already held on table {table_name}',
                     LockStatus.GRANTED,
                     blocked_by=[],
@@ -195,7 +188,6 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                     super().transaction_rollback(transaction_id)
                     return ConcurrencyResponse(
                         transaction_id, 
-                        False, 
                         f'Write denied (Wait-Die): {reason}',
                         LockStatus.FAILED,
                         blocked_by=[exclusive_holder],
@@ -205,7 +197,6 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                     transaction['waiting_for'] = exclusive_holder
                     return ConcurrencyResponse(
                         transaction_id, 
-                        False, 
                         f'Write waiting (Wait-Die): {reason}',
                         LockStatus.WAITING,
                         blocked_by=[exclusive_holder],
@@ -222,7 +213,6 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                         super().transaction_rollback(transaction_id)
                         return ConcurrencyResponse(
                             transaction_id, 
-                            False, 
                             f'Write denied (Wait-Die): {reason}',
                             LockStatus.FAILED,
                             blocked_by=list(other_shared_holders),
@@ -232,7 +222,6 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                         transaction['waiting_for'] = first_holder
                         return ConcurrencyResponse(
                             transaction_id, 
-                            False, 
                             f'Write waiting (Wait-Die): shared locks held by {len(other_shared_holders)} transaction(s)',
                             LockStatus.WAITING,
                             blocked_by=list(other_shared_holders),
@@ -249,7 +238,6 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
             self.exclusive_locks[table_name] = transaction_id
             return ConcurrencyResponse(
                 transaction_id, 
-                True, 
                 f'Write lock granted on table {table_name} (exclusive)',
                 LockStatus.GRANTED,
                 blocked_by=[],

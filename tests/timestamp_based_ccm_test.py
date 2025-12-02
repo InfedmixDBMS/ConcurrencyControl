@@ -49,7 +49,7 @@ def test_timestamp_based():
     print(f"   → {c2.reason}")
     ccm.transaction_commit_flushed(t2)
     
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed and c1.query_allowed and c2.query_allowed:
+    if r1.can_proceed and r2.can_proceed and r3.can_proceed and c1.can_proceed and c2.can_proceed:
         print("✓ Test 1 PASSED\n")
         passed_test += 1
     else:
@@ -75,7 +75,7 @@ def test_timestamp_based():
     r3 = ccm.transaction_query(t3, TableAction.READ, 1)
     print(f"   → {r3.reason}")
     
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed:
+    if r1.can_proceed and r2.can_proceed and r3.can_proceed:
         print("✓ Test 2 PASSED - All concurrent reads allowed\n")
         passed_test += 1
     else:
@@ -96,7 +96,7 @@ def test_timestamp_based():
     r2 = ccm.transaction_query(t1, TableAction.READ, 1)
     print(f"   → {r2.reason}")
     
-    if r1.query_allowed and not r2.query_allowed:
+    if r1.can_proceed and not r2.can_proceed:
         print("✓ Test 3 PASSED - Older transaction cannot read newer write\n")
         passed_test += 1
     else:
@@ -117,7 +117,7 @@ def test_timestamp_based():
     r2 = ccm.transaction_query(t1, TableAction.WRITE, 1)
     print(f"   → {r2.reason}")
     
-    if r1.query_allowed and not r2.query_allowed:
+    if r1.can_proceed and not r2.can_proceed:
         print("✓ Test 4 PASSED - Older transaction cannot write after newer read\n")
         passed_test += 1
     else:
@@ -138,7 +138,7 @@ def test_timestamp_based():
     r2 = ccm.transaction_query(t1, TableAction.WRITE, 1)
     print(f"   → {r2.reason}")
     
-    if r1.query_allowed and r2.query_allowed and "Thomas Write Rule" in r2.reason:
+    if r1.can_proceed and r2.can_proceed and "Thomas Write Rule" in r2.reason:
         print("✓ Test 5 PASSED - Thomas Write Rule applied\n")
         passed_test += 1
     else:
@@ -163,7 +163,7 @@ def test_timestamp_based():
     r3 = ccm.transaction_query(t2, TableAction.WRITE, 1)
     print(f"   → {r3.reason}")
     
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed:
+    if r1.can_proceed and r2.can_proceed and r3.can_proceed:
         print("✓ Test 6 PASSED - Proper timestamp ordering maintained\n")
         passed_test += 1
     else:
@@ -184,7 +184,7 @@ def test_timestamp_based():
     r2 = ccm.transaction_query(t2, TableAction.WRITE, 2)
     print(f"   → {r2.reason}")
     
-    if r1.query_allowed and r2.query_allowed:
+    if r1.can_proceed and r2.can_proceed:
         print("✓ Test 7 PASSED - Different objects don't conflict\n")
         passed_test += 1
     else:
@@ -213,7 +213,7 @@ def test_timestamp_based():
     print(f"   → {r3.reason}")
     print(f"   RTS(X) = {ccm.table_read_timestamps.get(1, 0)}")
     
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed and ccm.table_read_timestamps.get(1, 0) == t3:
+    if r1.can_proceed and r2.can_proceed and r3.can_proceed and ccm.table_read_timestamps.get(1, 0) == t3:
         print("✓ Test 8 PASSED - RTS properly updated to maximum\n")
         passed_test += 1
     else:
@@ -237,7 +237,7 @@ def test_timestamp_based():
     c1 = ccm.transaction_commit(t1)
     print(f"   → {c1.reason}")
     
-    if r1.query_allowed and r2.query_allowed and c1.query_allowed:
+    if r1.can_proceed and r2.can_proceed and c1.can_proceed:
         print("✓ Test 9 PASSED - Commit validation successful\n")
         passed_test += 1
     else:
@@ -262,7 +262,7 @@ def test_timestamp_based():
     c1 = ccm.transaction_commit(t1)
     print(f"   → {c1.reason}")
     
-    if r1.query_allowed and r2.query_allowed and not c1.query_allowed:
+    if r1.can_proceed and r2.can_proceed and not c1.can_proceed:
         print("✓ Test 10 PASSED - Commit validation failed (read set invalidated)\n")
         passed_test += 1
     else:
@@ -290,7 +290,7 @@ def test_timestamp_based():
     r4 = ccm.transaction_query(t1, TableAction.WRITE, 2)
     print(f"   → {r4.reason}")
     
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed and r4.query_allowed:
+    if r1.can_proceed and r2.can_proceed and r3.can_proceed and r4.can_proceed:
         print("✓ Test 11 PASSED - Same transaction multiple operations\n")
         passed_test += 1
     else:
@@ -320,7 +320,7 @@ def test_timestamp_based():
     print(f"   → {r4.reason}")
     
     # T2 has higher timestamp, so it should succeed
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed and r4.query_allowed:
+    if r1.can_proceed and r2.can_proceed and r3.can_proceed and r4.can_proceed:
         print("✓ Test 12 PASSED - Multi-object operations work correctly\n")
         passed_test += 1
     else:
@@ -342,7 +342,7 @@ def test_timestamp_based():
     print(f"   → {r2.reason}")
     
     # In timestamp ordering, T2 can read because it has higher TS
-    if r1.query_allowed and r2.query_allowed:
+    if r1.can_proceed and r2.can_proceed:
         print("✓ Test 13 PASSED - Timestamp ordering allows read (no dirty read in TO)\n")
         passed_test += 1
     else:
@@ -371,7 +371,7 @@ def test_timestamp_based():
     print(f"   → {r3.reason}")
     print(f"   WTS(X) = {ccm.table_write_timestamps.get(1, 0)}")
     
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed and ccm.table_write_timestamps.get(1, 0) == t3:
+    if r1.can_proceed and r2.can_proceed and r3.can_proceed and ccm.table_write_timestamps.get(1, 0) == t3:
         print("✓ Test 14 PASSED - WTS properly updated\n")
         passed_test += 1
     else:
@@ -397,7 +397,7 @@ def test_timestamp_based():
     r3 = ccm.transaction_query(t3, TableAction.READ, 1)
     print(f"   → {r3.reason}")
     
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed:
+    if r1.can_proceed and r2.can_proceed and r3.can_proceed:
         print("✓ Test 15 PASSED - Read-Write-Read pattern works\n")
         passed_test += 1
     else:
@@ -421,7 +421,7 @@ def test_timestamp_based():
     c1 = ccm.transaction_commit(t1)
     print(f"   → {c1.reason}")
     
-    if r1.query_allowed and r2.query_allowed and c1.query_allowed:
+    if r1.can_proceed and r2.can_proceed and c1.can_proceed:
         print("✓ Test 16 PASSED - Write-only transaction commits successfully\n")
         passed_test += 1
     else:
@@ -463,8 +463,8 @@ def test_timestamp_based():
     # T1 tries to read Y (written by T2 with higher TS) - should fail
     # T2 tries to read Z (written by T3 with higher TS) - should fail
     # T3 tries to read X (written by T1 with lower TS) - should succeed
-    conflicts_detected = not r4.query_allowed or not r5.query_allowed
-    if r1.query_allowed and r2.query_allowed and r3.query_allowed and r6.query_allowed and conflicts_detected:
+    conflicts_detected = not r4.can_proceed or not r5.can_proceed
+    if r1.can_proceed and r2.can_proceed and r3.can_proceed and r6.can_proceed and conflicts_detected:
         print("✓ Test 17 PASSED - Complex multi-object conflicts detected\n")
         passed_test += 1
     else:
