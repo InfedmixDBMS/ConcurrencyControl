@@ -1,3 +1,4 @@
+import threading
 from .row_action import TableAction
 from .concurrency_response import ConcurrencyResponse, LockStatus
 from .concurrency_control_manager import ConcurrencyControlManager
@@ -10,6 +11,11 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
         self.exclusive_locks = {}
         self.wait_queue = {}
         self.timestamp_counter = 0
+        
+        # Event-driven wake-up mechanism
+        self.waiting_events = {}  # tid -> threading.Event
+        self.resource_waiters = {}  # resource_name -> set of waiting transaction IDs
+        self.events_lock = threading.Lock()
 
     def transaction_begin(self) -> int:
         transaction_id = super().transaction_begin()
@@ -22,6 +28,11 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
             'has_released_lock': False,
             'waiting_for': None 
         }
+        
+        # Create event for this transaction
+        with self.events_lock:
+            self.waiting_events[transaction_id] = threading.Event()
+        
         return transaction_id
 
     def __transaction_release_locks(self, transaction_id: int) -> None:
@@ -53,12 +64,72 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
         super().transaction_abort(transaction_id)
         self.__transaction_release_locks(transaction_id)
     
+    def transaction_end(self, transaction_id: int) -> None:
+        """Override to cleanup events"""
+        super().transaction_end(transaction_id)
+        
+        #cleanup event
+        with self.events_lock:
+            if transaction_id in self.waiting_events:
+                del self.waiting_events[transaction_id]
+            
+            #remove from any resource waiters
+            for resource_name in list(self.resource_waiters.keys()):
+                if transaction_id in self.resource_waiters[resource_name]:
+                    self.resource_waiters[resource_name].discard(transaction_id)
+                if len(self.resource_waiters[resource_name]) == 0:
+                    del self.resource_waiters[resource_name]
+    
+    def get_wait_event(self, transaction_id: int) -> threading.Event:
+        """Get the event object for a waiting transaction"""
+        with self.events_lock:
+            if transaction_id not in self.waiting_events:
+                self.waiting_events[transaction_id] = threading.Event()
+            return self.waiting_events[transaction_id]
+    
+    def register_waiting_transaction(self, transaction_id: int, resource_name: str):
+        """Register a transaction as waiting for a specific resource"""
+        with self.events_lock:
+            if resource_name not in self.resource_waiters:
+                self.resource_waiters[resource_name] = set()
+            self.resource_waiters[resource_name].add(transaction_id)
+            
+            # Clear the event (it will be set when resource is freed)
+            if transaction_id in self.waiting_events:
+                self.waiting_events[transaction_id].clear()
+    
     def __process_wait_queue(self):
-        """Process wait queue after locks are released"""
+        """Process wait queue after locks are released - signal waiting transactions"""
         
-        # TODO: Kasih sinyal ke komponen lain "transaksinya udh selese, yg nunggu bisa lanjut"
+        #collect all resources that were freed
+        freed_resources = set()
         
-        # Sementara cm dikosongin aja queue-nya
+        #check which shared lock resources are now free or have reduced holders
+        for table_name in list(self.shared_locks.keys()):
+            freed_resources.add(table_name)
+        
+        #check which exclusive lock resources are now free
+        for table_name in list(self.exclusive_locks.keys()):
+            if table_name not in freed_resources:
+                freed_resources.add(table_name)
+        
+        #also check resources that are now completely free
+        with self.events_lock:
+            for resource_name in list(self.resource_waiters.keys()):
+                freed_resources.add(resource_name)
+        
+        #signal all transactions waiting on freed resources
+        with self.events_lock:
+            for resource_name in freed_resources:
+                if resource_name in self.resource_waiters:
+                    waiting_tids = self.resource_waiters[resource_name].copy()
+                    for tid in waiting_tids:
+                        if tid in self.waiting_events:
+                            self.waiting_events[tid].set()  # Wake up the waiting transaction
+                    # Clear the waiters for this resource
+                    self.resource_waiters[resource_name].clear()
+        
+        #clear waiting_for flags
         for tid in self.transactions:
             if self.transactions[tid].get('waiting_for'):
                 self.transactions[tid]['waiting_for'] = None
@@ -150,6 +221,8 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                         )
                     else:
                         transaction['waiting_for'] = exclusive_holder
+                        #register this transaction as waiting for the resource
+                        self.register_waiting_transaction(transaction_id, table_name)
                         return ConcurrencyResponse(
                             transaction_id, 
                             f'Read waiting (Wait-Die): {reason}',
@@ -195,6 +268,8 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                     )
                 else:
                     transaction['waiting_for'] = exclusive_holder
+                    # Register this transaction as waiting for the resource
+                    self.register_waiting_transaction(transaction_id, table_name)
                     return ConcurrencyResponse(
                         transaction_id, 
                         f'Write waiting (Wait-Die): {reason}',
@@ -220,6 +295,8 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                         )
                     else:
                         transaction['waiting_for'] = first_holder
+                        # Register this transaction as waiting for the resource
+                        self.register_waiting_transaction(transaction_id, table_name)
                         return ConcurrencyResponse(
                             transaction_id, 
                             f'Write waiting (Wait-Die): shared locks held by {len(other_shared_holders)} transaction(s)',
