@@ -16,7 +16,7 @@ def print_schedule(name, operations):
 def test_lock_based():
     """Simple Lock-Based CCM Tests"""
     print("\n" + "="*60)
-    print("LOCK-BASED CCM - 2PL + WAIT-DIE TESTS")
+    print("LOCK-BASED CCM - 2PL + DEADLOCK DETECTION TESTS")
     print("="*60)
     
     # Test 1: Serial Schedule (should work)
@@ -83,10 +83,10 @@ def test_lock_based():
     r2 = ccm.transaction_query(t2, TableAction.WRITE, 1)
     print(f"   → {r2.reason}")
     
-    # In Wait-Die: T2 (younger) should DIE (abort)
+    # With deadlock detection: T2 should WAIT for T1 (no deadlock yet)
     t2_status = ccm.transaction_get_status(t2).value
-    if r1.can_proceed and not r2.can_proceed and t2_status == 'failed':
-        print("✓ Test 3 PASSED - Younger transaction dies\n")
+    if r1.can_proceed and not r2.can_proceed and 'waiting' in r2.reason.lower() and t2_status == 'active':
+        print("✓ Test 3 PASSED - T2 waits for T1's shared lock\n")
     else:
         print("✗ Test 3 FAILED\n")
     
@@ -104,10 +104,10 @@ def test_lock_based():
     r2 = ccm.transaction_query(t2, TableAction.WRITE, 1)
     print(f"   → {r2.reason}")
     
-    # In Wait-Die: T2 (younger) should DIE (abort)
+    # With deadlock detection: T2 should WAIT for T1 (no deadlock yet)
     t2_status = ccm.transaction_get_status(t2).value
-    if r1.can_proceed and not r2.can_proceed and t2_status == 'failed':
-        print("✓ Test 4 PASSED - Younger transaction dies\n")
+    if r1.can_proceed and not r2.can_proceed and 'waiting' in r2.reason.lower() and t2_status == 'active':
+        print("✓ Test 4 PASSED - T2 waits for T1's exclusive lock\n")
     else:
         print("✗ Test 4 FAILED\n")
     
@@ -148,7 +148,7 @@ def test_lock_based():
     else:
         print("✗ Test 6 FAILED\n")
     
-    # Test 7: Multiple Reads Then Write Fails
+    # Test 7: Multiple Reads Then Write Waits
     print_schedule("Test 7: Multiple Readers Block Writer", ["T1 Read X", "T2 Read X", "T3 Write X"])
     ccm = LockBasedConcurrencyControlManager()
     t1 = ccm.transaction_begin()
@@ -167,10 +167,10 @@ def test_lock_based():
     r3 = ccm.transaction_query(t3, TableAction.WRITE, 1)
     print(f"   → {r3.reason}")
     
-    # In Wait-Die: T3 (youngest) should DIE (abort) when conflicting with older readers
+    # With deadlock detection: T3 should WAIT for multiple readers (no deadlock)
     t3_status = ccm.transaction_get_status(t3).value
-    if r1.can_proceed and r2.can_proceed and not r3.can_proceed and t3_status == 'failed':
-        print("✓ Test 7 PASSED - Younger writer aborted by older readers\n")
+    if r1.can_proceed and r2.can_proceed and not r3.can_proceed and 'waiting' in r3.reason.lower() and t3_status == 'active':
+        print("✓ Test 7 PASSED - Writer waits for multiple readers\n")
     else:
         print("✗ Test 7 FAILED\n")
     
@@ -323,7 +323,7 @@ def test_lock_based():
     else:
         print("✗ Test 13 FAILED\n")
     
-    # Test 14: Deadlock Potential Scenario
+    # Test 14: Deadlock Detection Scenario
     print_schedule("Test 14: Potential Deadlock", ["T1 Write X", "T2 Write Y", "T1 Write Y", "T2 Write X"])
     ccm = LockBasedConcurrencyControlManager()
     t1 = ccm.transaction_begin()
@@ -341,19 +341,21 @@ def test_lock_based():
     r3 = ccm.transaction_query(t1, TableAction.WRITE, 2)
     print(f"   → {r3.reason}")
     
-    # Check if T2 was wounded
+    # Check if T2 was aborted due to deadlock
     t2_status = ccm.transaction_get_status(t2).value
     if t2_status != 'failed':
         print(f"T{t2}: Write(X)")
         r4 = ccm.transaction_query(t2, TableAction.WRITE, 1)
         print(f"   → {r4.reason}")
-        deadlock_prevented = not r3.can_proceed or not r4.can_proceed
+        # Either T2 is aborted due to deadlock detection
+        t2_status_after = ccm.transaction_get_status(t2).value
+        deadlock_prevented = (t2_status_after == 'failed' and 'deadlock' in r4.reason.lower())
     else:
-        print(f"T{t2}: Already wounded/aborted by T1")
+        print(f"T{t2}: Already aborted")
         deadlock_prevented = True
     
     if r1.can_proceed and r2.can_proceed and deadlock_prevented:
-        print("✓ Test 14 PASSED - Deadlock prevented by Wait-Die\n")
+        print("✓ Test 14 PASSED - Deadlock detected and resolved\n")
     else:
         print("✗ Test 14 FAILED\n")
     
@@ -376,11 +378,11 @@ def test_lock_based():
     r3 = ccm.transaction_query(t3, TableAction.WRITE, 1)
     print(f"   → {r3.reason}")
     
-    # In Wait-Die: T2 and T3 (younger) should DIE (abort) when conflicting with T1 (older)
+    # With deadlock detection: Both T2 and T3 should WAIT for T1 (no deadlock)
     t2_status = ccm.transaction_get_status(t2).value
     t3_status = ccm.transaction_get_status(t3).value
-    if r1.can_proceed and not r2.can_proceed and not r3.can_proceed and t2_status == 'failed' and t3_status == 'failed':
-        print("✓ Test 15 PASSED - Both T2 and T3 aborted by older T1\n")
+    if r1.can_proceed and not r2.can_proceed and not r3.can_proceed and 'waiting' in r2.reason.lower() and 'waiting' in r3.reason.lower() and t2_status == 'active' and t3_status == 'active':
+        print("✓ Test 15 PASSED - Both T2 and T3 wait for T1\n")
     else:
         print("✗ Test 15 FAILED\n")
     
@@ -425,45 +427,45 @@ def test_lock_based():
     else:
         print("✗ Test 17 FAILED\n")
     
-    # Test 18: Wait-Die - Younger Dies
-    print_schedule("Test 18: Wait-Die (Younger Dies)", ["T1 Write X", "T2 Write X (T2 younger dies)"])
+    # Test 18: Deadlock Detection - T2 Waits
+    print_schedule("Test 18: Write-Write Conflict (No Deadlock)", ["T1 Write X", "T2 Write X"])
     ccm = LockBasedConcurrencyControlManager()
-    t1 = ccm.transaction_begin()  # T1 starts first (TS=1, older)
-    t2 = ccm.transaction_begin()  # T2 starts second (TS=2, younger)
+    t1 = ccm.transaction_begin()  # T1 starts first (TS=1)
+    t2 = ccm.transaction_begin()  # T2 starts second (TS=2)
     
     print(f"T{t1}: Write(X)")
     r1 = ccm.transaction_query(t1, TableAction.WRITE, 1)
     print(f"   → {r1.reason}")
     
-    print(f"T{t2}: Write(X) - T{t2} is YOUNGER")
+    print(f"T{t2}: Write(X)")
     r2 = ccm.transaction_query(t2, TableAction.WRITE, 1)
     print(f"   → {r2.reason}")
     
-    # T2 (younger, TS=2) should DIE (abort)
+    # With deadlock detection: T2 should WAIT (no deadlock detected)
     txn2_status = ccm.transaction_get_status(t2)
-    if r1.can_proceed and not r2.can_proceed and txn2_status.value == 'failed':
-        print("✓ Test 18 PASSED - Younger transaction dies (aborted)\n")
+    if r1.can_proceed and not r2.can_proceed and 'waiting' in r2.reason.lower() and txn2_status.value == 'active':
+        print("✓ Test 18 PASSED - T2 waits for T1 (no deadlock)\n")
     else:
         print("✗ Test 18 FAILED\n")
     
-    # Test 19: Wait-Die - Read-Write (Younger Dies)
-    print_schedule("Test 19: Wait-Die Read-Write", ["T1 Read X", "T2 Write X (T2 younger dies)"])
+    # Test 19: Deadlock Detection - Read-Write (T2 Waits)
+    print_schedule("Test 19: Read-Write Conflict (No Deadlock)", ["T1 Read X", "T2 Write X"])
     ccm = LockBasedConcurrencyControlManager()
-    t1 = ccm.transaction_begin()  # T1 older (TS=1)
-    t2 = ccm.transaction_begin()  # T2 younger (TS=2)
+    t1 = ccm.transaction_begin()  # T1 (TS=1)
+    t2 = ccm.transaction_begin()  # T2 (TS=2)
     
     print(f"T{t1}: Read(X)")
     r1 = ccm.transaction_query(t1, TableAction.READ, 1)
     print(f"   → {r1.reason}")
     
-    print(f"T{t2}: Write(X) - T{t2} is YOUNGER")
+    print(f"T{t2}: Write(X)")
     r2 = ccm.transaction_query(t2, TableAction.WRITE, 1)
     print(f"   → {r2.reason}")
     
-    # T2 (younger) should DIE (abort)
+    # With deadlock detection: T2 should WAIT (no deadlock detected)
     txn2_status = ccm.transaction_get_status(t2)
-    if r1.can_proceed and not r2.can_proceed and txn2_status.value == 'failed':
-        print("✓ Test 19 PASSED - Younger transaction dies on read-write conflict\n")
+    if r1.can_proceed and not r2.can_proceed and 'waiting' in r2.reason.lower() and txn2_status.value == 'active':
+        print("✓ Test 19 PASSED - T2 waits for T1's shared lock (no deadlock)\n")
     else:
         print("✗ Test 19 FAILED\n")
     
