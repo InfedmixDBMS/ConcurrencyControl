@@ -1,6 +1,6 @@
 import time
 
-from src.transaction_status import TransactionStatus
+from .transaction_status import TransactionStatus
 from .row_action import TableAction
 from .concurrency_response import ConcurrencyResponse, LockStatus
 from .concurrency_control_manager import ConcurrencyControlManager
@@ -49,16 +49,23 @@ class ValidationBasedConcurrencyControlManager(ConcurrencyControlManager):
             if other_id == transaction_id:
                 continue
             
-            # Only validate against committed transactions
-            if Tj['status'] not in [TransactionStatus.COMMITTED, TransactionStatus.TERMINATED]:
+            # Validate against committed or partially committed transactions
+            # (partially committed means they passed validation and are in the process of committing)
+            if Tj['status'] not in [TransactionStatus.PARTIALLY_COMMITTED, TransactionStatus.COMMITTED, TransactionStatus.TERMINATED]:
                 continue
             
-            if Tj['finish_timestamp'] <= Ti['start_timestamp']:
+            # Skip if finish_timestamp is None (not yet flushed)
+            # For PARTIALLY_COMMITTED, we check against their validation timestamp
+            finish_ts = Tj.get('finish_timestamp') or Tj.get('validation_timestamp')
+            if finish_ts is None:
+                continue
+                
+            if finish_ts <= Ti['start_timestamp']:
                 continue
             if Tj['start_timestamp'] >= Ti['validation_timestamp']:
                 continue
             
-            # read-write or write-write
+            # read-write or write-write conflict detection
             if (Tj['write_set'] & Ti['read_set']) or (Tj['write_set'] & Ti['write_set']):
                 Ti['status'] = TransactionStatus.ABORTED
                 return ConcurrencyResponse(
