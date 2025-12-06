@@ -264,6 +264,7 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                         # Deadlock detected - abort this transaction (victim)
                         self._remove_from_wait_for_graph(transaction_id)
                         super().transaction_rollback(transaction_id)
+                        self.__transaction_release_locks(transaction_id)
                         return ConcurrencyResponse(
                             transaction_id, 
                             f'Deadlock detected. Transaction {transaction_id} aborted (victim selection).',
@@ -321,6 +322,7 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                     # Deadlock detected - abort this transaction
                     self._remove_from_wait_for_graph(transaction_id)
                     super().transaction_rollback(transaction_id)
+                    self.__transaction_release_locks(transaction_id)
                     return ConcurrencyResponse(
                         transaction_id, 
                         f'Deadlock detected. Transaction {transaction_id} aborted (victim selection).',
@@ -352,6 +354,7 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
                         # Deadlock detected - abort this transaction
                         self._remove_from_wait_for_graph(transaction_id)
                         super().transaction_rollback(transaction_id)
+                        self.__transaction_release_locks(transaction_id)
                         return ConcurrencyResponse(
                             transaction_id, 
                             f'Deadlock detected. Transaction {transaction_id} aborted (victim selection).',
