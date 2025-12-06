@@ -13,8 +13,7 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
         self.timestamp_counter = 0
         
         # Event-driven wake-up mechanism
-        self.waiting_events = {}  # tid -> threading.Event
-        self.resource_waiters = {}  # resource_name -> set of waiting transaction IDs
+        self.resource_waiters = {}
         self.events_lock = threading.Lock()
 
     def transaction_begin(self) -> int:
@@ -29,15 +28,16 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
             'waiting_for': None 
         }
         
-        # Create event for this transaction
-        with self.events_lock:
-            self.waiting_events[transaction_id] = threading.Event()
+        # No need to create event in advance - created on demand when waiting
         
         return transaction_id
 
     def __transaction_release_locks(self, transaction_id: int) -> None:
         transaction = self.transactions[transaction_id]
         transaction['has_released_lock'] = True  #entering shrinking phase
+        
+        #track which resources are being freed
+        freed_resources = set()
         
         #release locks
         for table_name in transaction['shared_tables']:
@@ -47,14 +47,18 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
             shared_holders.discard(transaction_id)
             if len(shared_holders) == 0:
                 del self.shared_locks[table_name]
+                freed_resources.add(table_name)  #completely freed
+            else:
+                freed_resources.add(table_name)  #reduced holders, waiters might proceed
         
         for table_name in transaction['exclusive_tables']:
             exclusive_holder = self.exclusive_locks.get(table_name)
             if exclusive_holder != transaction_id:
                 continue
             del self.exclusive_locks[table_name]
+            freed_resources.add(table_name)  #completely freed
         
-        self.__process_wait_queue()
+        self.__process_wait_queue(freed_resources)
 
     def transaction_commit_flushed(self, transaction_id: int) -> None:
         super().transaction_commit_flushed(transaction_id)
@@ -68,66 +72,50 @@ class LockBasedConcurrencyControlManager(ConcurrencyControlManager):
         """Override to cleanup events"""
         super().transaction_end(transaction_id)
         
-        #cleanup event
+        # Cleanup: remove transaction from all resource waiters
         with self.events_lock:
-            if transaction_id in self.waiting_events:
-                del self.waiting_events[transaction_id]
-            
-            #remove from any resource waiters
             for resource_name in list(self.resource_waiters.keys()):
                 if transaction_id in self.resource_waiters[resource_name]:
-                    self.resource_waiters[resource_name].discard(transaction_id)
-                if len(self.resource_waiters[resource_name]) == 0:
-                    del self.resource_waiters[resource_name]
+                    del self.resource_waiters[resource_name][transaction_id]
+                    # Clean up empty resource entries
+                    if len(self.resource_waiters[resource_name]) == 0:
+                        del self.resource_waiters[resource_name]
     
     def get_wait_event(self, transaction_id: int) -> threading.Event:
         """Get the event object for a waiting transaction"""
         with self.events_lock:
-            if transaction_id not in self.waiting_events:
-                self.waiting_events[transaction_id] = threading.Event()
-            return self.waiting_events[transaction_id]
+            # Find which resource this transaction is waiting for
+            for resource_name, waiters in self.resource_waiters.items():
+                if transaction_id in waiters:
+                    return waiters[transaction_id]
+            # If not found, return None (shouldn't happen in normal flow)
+            return None
     
     def register_waiting_transaction(self, transaction_id: int, resource_name: str):
         """Register a transaction as waiting for a specific resource"""
         with self.events_lock:
             if resource_name not in self.resource_waiters:
-                self.resource_waiters[resource_name] = set()
-            self.resource_waiters[resource_name].add(transaction_id)
+                self.resource_waiters[resource_name] = {}
             
-            # Clear the event (it will be set when resource is freed)
-            if transaction_id in self.waiting_events:
-                self.waiting_events[transaction_id].clear()
+            # Create or reuse event for this transaction on this resource
+            if transaction_id not in self.resource_waiters[resource_name]:
+                self.resource_waiters[resource_name][transaction_id] = threading.Event()
+            else:
+                # Clear the event if reusing (shouldn't happen normally)
+                self.resource_waiters[resource_name][transaction_id].clear()
     
-    def __process_wait_queue(self):
+    def __process_wait_queue(self, freed_resources: set):
         """Process wait queue after locks are released - signal waiting transactions"""
-        
-        #collect all resources that were freed
-        freed_resources = set()
-        
-        #check which shared lock resources are now free or have reduced holders
-        for table_name in list(self.shared_locks.keys()):
-            freed_resources.add(table_name)
-        
-        #check which exclusive lock resources are now free
-        for table_name in list(self.exclusive_locks.keys()):
-            if table_name not in freed_resources:
-                freed_resources.add(table_name)
-        
-        #also check resources that are now completely free
-        with self.events_lock:
-            for resource_name in list(self.resource_waiters.keys()):
-                freed_resources.add(resource_name)
         
         #signal all transactions waiting on freed resources
         with self.events_lock:
             for resource_name in freed_resources:
                 if resource_name in self.resource_waiters:
-                    waiting_tids = self.resource_waiters[resource_name].copy()
-                    for tid in waiting_tids:
-                        if tid in self.waiting_events:
-                            self.waiting_events[tid].set()  # Wake up the waiting transaction
-                    # Clear the waiters for this resource
-                    self.resource_waiters[resource_name].clear()
+                    #signal all waiters for this resource
+                    for tid, event in self.resource_waiters[resource_name].items():
+                        event.set()  #wake up the waiting transaction
+                    #clear the waiters for this resource
+                    del self.resource_waiters[resource_name]
         
         #clear waiting_for flags
         for tid in self.transactions:
